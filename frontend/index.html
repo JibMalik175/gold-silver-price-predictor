@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Silver & Gold Predictor Dashboard</title>
+  <!-- Favicon to avoid 404 -->
+  <link rel="icon" href="data:,">
+
+  <!-- Fonts & Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" crossorigin="anonymous"
+    referrerpolicy="no-referrer"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+  <button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Open menu" onclick="toggleSidebar(true)">
+    <i class="fas fa-bars"></i>
+  </button>
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
+
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon"><i class="fas fa-chart-line"></i></div>
+        <div class="logo-text">Predictor</div>
+      </div>
+      <div class="sidebar-nav">
+        <div class="sidebar-section-label">Main Menu</div>
+        <a href="#dashboard" class="nav-item active" onclick="updateNav(this)"><i class="fas fa-home"></i> Dashboard</a>
+        <a href="#predictions" class="nav-item" onclick="updateNav(this)"><i class="fas fa-brain"></i> Predictions</a>
+        <a href="#calculator" class="nav-item" onclick="updateNav(this)"><i class="fas fa-calculator"></i>
+          Profit/Loss</a>
+        <a href="#reality" class="nav-item" onclick="updateNav(this)"><i class="fas fa-check-double"></i> Reality
+          Check</a>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-left">
+          <div class="page-title" id="current-view-title">Dashboard Overview</div>
+        </div>
+        <div class="header-right">
+          <div class="user-profile">
+            <div class="user-avatar">A</div>
+            <div class="user-info">
+              <div class="user-name">Admin User</div>
+              <div class="user-role">Analyst</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="page-content">
+
+        <!-- SECTION: DASHBOARD -->
+        <section id="dashboard" class="content-section">
+          <div class="welcome-banner">
+            <div class="dashboard-switcher" role="tablist" aria-label="Choose metal dashboard">
+              <button type="button" class="dashboard-switch-btn active" data-asset="silver" role="tab"
+                aria-selected="true" onclick="setActiveDashboard('silver', this)">
+                <i class="fas fa-coins"></i> Silver
+              </button>
+              <button type="button" class="dashboard-switch-btn" data-asset="gold" role="tab" aria-selected="false"
+                onclick="setActiveDashboard('gold', this)">
+                <i class="fas fa-cube"></i> Gold
+              </button>
+            </div>
+            <h2>Market Dashboard</h2>
+            <p>Real-time Gold and Silver prices and history from MongoDB Atlas. Pick a metal above to focus its
+              dashboard.</p>
+          </div>
+
+          <div id="dashboard-panel-silver" class="dashboard-panel" data-panel="silver">
+            <div class="stats-grid stats-grid-single">
+              <div class="stat-card blue animate-fade-in">
+                <div class="stat-icon blue"><i class="fas fa-coins"></i></div>
+                <div class="stat-info">
+                  <div class="stat-label">Silver (spot, per oz)</div>
+                  <div class="stat-value" id="silverPrice">Loading...</div>
+                  <div class="stat-change positive" id="silverPriceMeta">Live from Cloud</div>
+                </div>
+              </div>
+            </div>
+            <div class="chart-card animate-fade-in">
+              <div class="card-header">
+                <h3 class="card-title">Silver price history</h3>
+                <div class="chart-actions">
+                  <button type="button" class="btn btn-sm btn-ghost active"
+                    onclick="changeRange('silver', 'all', this)">All</button>
+                  <button type="button" class="btn btn-sm btn-ghost"
+                    onclick="changeRange('silver', 'monthly', this)">1M</button>
+                  <button type="button" class="btn btn-sm btn-ghost"
+                    onclick="changeRange('silver', 'weekly', this)">1W</button>
+                  <button type="button" class="btn btn-sm btn-ghost"
+                    onclick="changeRange('silver', 'daily', this)">24h</button>
+                </div>
+              </div>
+              <div class="chart-container large">
+                <canvas id="silverChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div id="dashboard-panel-gold" class="dashboard-panel hidden" data-panel="gold">
+            <div class="stats-grid stats-grid-single">
+              <div class="stat-card orange animate-fade-in">
+                <div class="stat-icon orange"><i class="fas fa-cube"></i></div>
+                <div class="stat-info">
+                  <div class="stat-label">Gold (spot, per oz)</div>
+                  <div class="stat-value" id="goldPrice">Loading...</div>
+                  <div class="stat-change positive" id="goldPriceMeta">Live from Cloud</div>
+                </div>
+              </div>
+            </div>
+            <div class="chart-card animate-fade-in">
+              <div class="card-header">
+                <h3 class="card-title">Gold price history</h3>
+                <div class="chart-actions">
+                  <button type="button" class="btn btn-sm btn-ghost active"
+                    onclick="changeRange('gold', 'all', this)">All</button>
+                  <button type="button" class="btn btn-sm btn-ghost"
+                    onclick="changeRange('gold', 'monthly', this)">1M</button>
+                  <button type="button" class="btn btn-sm btn-ghost"
+                    onclick="changeRange('gold', 'weekly', this)">1W</button>
+                  <button type="button" class="btn btn-sm btn-ghost"
+                    onclick="changeRange('gold', 'daily', this)">24h</button>
+                </div>
+              </div>
+              <div class="chart-container large">
+                <canvas id="goldChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION: PREDICTIONS (per metal, matches dashboard) -->
+        <section id="predictions" class="content-section">
+          <div class="page-header">
+            <h1>Price forecasts</h1>
+            <p>Random Forest models using RSI, simple moving averages, and realized volatility. Each path is capped
+              using your latest test MAE and market volatility so the curve stays plausible.</p>
+          </div>
+
+          <div id="predictions-panel-silver" class="dashboard-panel" data-panel="silver">
+            <div class="prediction-layout">
+              <div class="card animate-fade-in">
+                <h3 class="card-title" style="margin-bottom: 1rem;">Silver forecast</h3>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="predTimeframeSilver" class="form-label">Time horizon</label>
+                    <select id="predTimeframeSilver" class="form-select" onchange="generatePrediction('silver')">
+                      <option value="daily">Next 30 days (daily)</option>
+                      <option value="weekly">Next 4 weeks (weekly)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div id="predictionResultSilver" class="hidden" style="margin-top: 2rem;">
+                <div class="card-actions-row" style="margin-bottom: 1rem; display: flex; justify-content: flex-end;">
+                  <button class="btn btn-sm btn-outline" id="saveSilverBtn" onclick="savePrediction('silver')">
+                    <i class="fas fa-save"></i> Save Path to Reality Check
+                  </button>
+                </div>
+                <div id="predictionSummarySilver" class="prediction-summary hidden"></div>
+                <div class="prediction-grid">
+                  <div class="chart-card animate-fade-in">
+                    <div class="card-header">
+                      <h3 class="card-title" id="predChartTitleSilver">Silver forecast</h3>
+                    </div>
+                    <div class="chart-container x-large">
+                      <canvas id="predChartSilver"></canvas>
+                    </div>
+                  </div>
+                  <div class="card animate-fade-in prediction-table-card">
+                    <h3 class="card-title">Forecasted Prices</h3>
+                    <div class="table-container small" style="margin-top: 1rem; max-height: 400px; overflow-y: auto;">
+                      <table class="data-table small" id="predTableSilver">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Price</th>
+                            <th>Range (CI)</th>
+                          </tr>
+                        </thead>
+                        <tbody id="predTableBodySilver">
+                          <!-- Filled by JS -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="predictions-panel-gold" class="dashboard-panel hidden" data-panel="gold">
+            <div class="prediction-layout">
+              <div class="card animate-fade-in">
+                <h3 class="card-title" style="margin-bottom: 1rem;">Gold forecast</h3>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label for="predTimeframeGold" class="form-label">Time horizon</label>
+                    <select id="predTimeframeGold" class="form-select" onchange="generatePrediction('gold')">
+                      <option value="daily">Next 30 days (daily)</option>
+                      <option value="weekly">Next 4 weeks (weekly)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div id="predictionResultGold" class="hidden" style="margin-top: 2rem;">
+                <div class="card-actions-row" style="margin-bottom: 1rem; display: flex; justify-content: flex-end;">
+                  <button class="btn btn-sm btn-outline" id="saveGoldBtn" onclick="savePrediction('gold')">
+                    <i class="fas fa-save"></i> Save Path to Reality Check
+                  </button>
+                </div>
+                <div id="predictionSummaryGold" class="prediction-summary hidden"></div>
+                <div class="prediction-grid">
+                  <div class="chart-card animate-fade-in">
+                    <div class="card-header">
+                      <h3 class="card-title" id="predChartTitleGold">Gold forecast</h3>
+                    </div>
+                    <div class="chart-container x-large">
+                      <canvas id="predChartGold"></canvas>
+                    </div>
+                  </div>
+                  <div class="card animate-fade-in prediction-table-card">
+                    <h3 class="card-title">Forecasted Prices</h3>
+                    <div class="table-container small" style="margin-top: 1rem; max-height: 400px; overflow-y: auto;">
+                      <table class="data-table small" id="predTableGold">
+                        <thead>
+                          <tr>
+                            <th>Date</th>
+                            <th>Price</th>
+                            <th>Range (CI)</th>
+                          </tr>
+                        </thead>
+                        <tbody id="predTableBodyGold">
+                          <!-- Filled by JS -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION: CALCULATOR -->
+        <section id="calculator" class="content-section">
+          <div class="page-header">
+            <h1>Profit/Loss Simulation</h1>
+            <p>Calculate potential returns based on historical market entry/exit points.</p>
+          </div>
+
+          <div class="card animate-fade-in">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="calcAsset" class="form-label">Asset</label>
+                <select id="calcAsset" class="form-select">
+                  <option value="silver">Silver</option>
+                  <option value="gold">Gold</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="calcQty" class="form-label">Quantity (Units)</label>
+                <input type="number" id="calcQty" class="form-input" value="10" min="1">
+              </div>
+              <div class="form-group">
+                <label for="calcBuyDate" class="form-label">Entry Date</label>
+                <input type="date" id="calcBuyDate" class="form-input">
+              </div>
+              <div class="form-group">
+                <label for="calcSellDate" class="form-label">Exit Date</label>
+                <input type="date" id="calcSellDate" class="form-input">
+              </div>
+            </div>
+            <button class="btn btn-primary btn-lg" onclick="calculatePL()" style="width: 100%; margin-top: 1rem;">
+              <i class="fas fa-calculator"></i> Run Simulation
+            </button>
+          </div>
+
+          <div id="calcResult" class="hidden" style="margin-top: 2rem;">
+            <!-- Result rendered here -->
+          </div>
+        </section>
+
+        <!-- SECTION: REALITY CHECK -->
+        <section id="reality" class="content-section">
+          <div class="page-header">
+            <h1>Reality Check</h1>
+            <p>Analyze how previous predictions compare with actual market outcomes. Status updates automatically as new
+              data is synchronized from MongoDB.</p>
+          </div>
+
+          <div class="card animate-fade-in">
+            <div class="card-header">
+              <h3 class="card-title">Historical Prediction Accuracy</h3>
+              <button class="btn btn-sm btn-ghost" onclick="loadRealityHistory()">
+                <i class="fas fa-sync"></i> Refresh
+              </button>
+            </div>
+            <div class="table-container" style="margin-top: 1rem; overflow-x: auto;">
+              <table class="data-table" id="realityTable">
+                <thead>
+                  <tr>
+                    <th>Asset</th>
+                    <th>Prediction Date</th>
+                    <th>Predicted For</th>
+                    <th>Predicted</th>
+                    <th>Actual</th>
+                    <th>Error ($)</th>
+                    <th>Error (%)</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="realityBody">
+                  <tr>
+                    <td colspan="8" style="text-align: center; padding: 2rem; color: var(--color-text-muted);">
+                      No saved predictions found. Generate and save a forecast to start tracking.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+
+</html>
