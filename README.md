@@ -1,4 +1,4 @@
-# 🪙 Silver & Gold Price Predictor: Premium Technical Documentation
+# 🪙 Silver & Gold Price Predictor: Technical Documentation
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=for-the-badge&logo=PyTorch&logoColor=white)](https://pytorch.org/)
