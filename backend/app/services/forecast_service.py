@@ -39,20 +39,29 @@ def _load_bundle(asset: str, timeframe: str) -> Optional[dict]:
     return joblib.load(path)
 
 
-def _mini_df_from_tail(closes: List[float], volumes: List[float]) -> pd.DataFrame:
-    n = len(closes)
-    return pd.DataFrame(
+def _last_feature_row(
+    dates: List,
+    closes: List[float],
+    highs: List[float],
+    lows: List[float],
+    volumes: List[float],
+) -> np.ndarray:
+    """
+    Compute the feature vector for the most recent bar.
+
+    Uses the real dates and real high/low history so inference features match
+    what the model saw in training (real day_of_week, real ATR / stochastic /
+    high-low range) instead of a synthetic close-only reconstruction.
+    """
+    df = pd.DataFrame(
         {
-            "date": pd.date_range("2000-01-01", periods=n, freq="D"),
+            "date": pd.to_datetime(pd.Series(dates)),
             "close": closes,
+            "high": highs,
+            "low": lows,
             "volume": volumes,
         }
     )
-
-
-def _last_feature_row(closes: List[float], volumes: List[float]) -> np.ndarray:
-    """Compute feature vector for the most recent bar in a synthetic history."""
-    df = _mini_df_from_tail(closes, volumes)
     enriched = enrich_price_df(df)
     valid = enriched.dropna(subset=FEATURE_COLUMNS)
     if valid.empty:
@@ -138,38 +147,44 @@ def generate_forecast(asset: str, timeframe: str = "daily", steps: int = 30) -> 
     if not np.isfinite(vol20_live):
         vol20_live = vol20_train_end
 
-    # Compute MA20 for mean-reversion anchor
-    ma20_anchor = float(df["close"].iloc[-20:].mean()) if len(df) >= 20 else last_close_hist
+    # Typical intrabar range, used to synthesize plausible high/low for predicted bars
+    # so rolling ATR / stochastic / range features stay in-distribution.
+    hl_range_typ = float(enriched_hist["hl_range_pct"].tail(20).mean())
+    if not np.isfinite(hl_range_typ) or hl_range_typ < 0:
+        hl_range_typ = 0.0
 
     tail_len = min(200, len(closes))
     predictions: List[Dict[str, Any]] = []
     curr_date = last_date
+    denom = max(steps - 1, 1)
 
+    work_date = list(df["date"].iloc[-tail_len:])
     work_close = list(closes[-tail_len:])
+    work_high = list(df["high"].astype(float).iloc[-tail_len:]) if "high" in df.columns else list(work_close)
+    work_low = list(df["low"].astype(float).iloc[-tail_len:]) if "low" in df.columns else list(work_close)
     work_vol = list(vols[-tail_len:])
 
     try:
         for h in range(steps):
-            feats = _last_feature_row(work_close, work_vol)
+            feats = _last_feature_row(work_date, work_close, work_high, work_low, work_vol)
 
             # Ensemble prediction: weighted average of all models' log return predictions
             pred_log_ret = 0.0
             for model, weight in zip(models, weights):
                 pred_log_ret += weight * float(model.predict(feats.reshape(1, -1))[0])
 
-            # Slightly tighter log return caps
+            # Gentle mean reversion in RETURN space toward the rolling mean of the
+            # evolving path (not a frozen snapshot), applied BEFORE the cap so the
+            # total step change can never exceed the volatility budget.
+            anchor = float(np.mean(work_close[-20:]))
+            beta = min(0.15, 0.03 + 0.12 * (h / denom))
+            anchor_ret = beta * float(np.log(anchor / work_close[-1]))
+
             cap = _step_return_cap(mae_test, float(vol20_live), work_close[-1], asset, h, steps)
-            pred_log_ret = float(np.clip(pred_log_ret, -cap, cap))
+            total_ret = float(np.clip(pred_log_ret + anchor_ret, -cap, cap))
 
             # Apply to price: P_t+1 = P_t * exp(r)
-            pred_price = work_close[-1] * np.exp(pred_log_ret)
-
-            # Stronger mean-reversion anchoring towards MA20
-            # As we go further out, blend more towards the moving average
-            denom = max(steps - 1, 1)
-            # Increase blend: start at 20%, ramp up to 50%
-            beta = min(0.50, 0.20 + 0.30 * (h / denom))
-            pred_price = (1.0 - beta) * pred_price + beta * ma20_anchor
+            pred_price = work_close[-1] * np.exp(total_ret)
 
             # Skip weekends for daily timeframe
             if timeframe == "daily":
@@ -183,8 +198,8 @@ def generate_forecast(asset: str, timeframe: str = "daily", steps: int = 30) -> 
             else:
                 curr_date = curr_date + timedelta(days=1)
 
-            # Compute confidence interval (widens over time)
-            ci_width = mae_test * (1.0 + 0.5 * (h / denom))
+            # Confidence interval widens with sqrt(horizon), like multi-step error compounding
+            ci_width = mae_test * float(np.sqrt(h + 1.0))
             ci_upper = round(pred_price + ci_width, 2)
             ci_lower = round(pred_price - ci_width, 2)
 
@@ -194,10 +209,17 @@ def generate_forecast(asset: str, timeframe: str = "daily", steps: int = 30) -> 
                 "ci_upper": ci_upper,
                 "ci_lower": ci_lower,
             })
+            work_date.append(curr_date)
             work_close.append(pred_price)
+            half_range = pred_price * hl_range_typ / 2.0
+            work_high.append(pred_price + half_range)
+            work_low.append(pred_price - half_range)
             work_vol.append(work_vol[-1])
             if len(work_close) > tail_len:
+                work_date = work_date[-tail_len:]
                 work_close = work_close[-tail_len:]
+                work_high = work_high[-tail_len:]
+                work_low = work_low[-tail_len:]
                 work_vol = work_vol[-tail_len:]
     except Exception as e:
         return {"error": f"Forecast generation failed: {str(e)}"}
