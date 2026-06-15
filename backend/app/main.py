@@ -157,7 +157,7 @@ async def get_prediction_history(asset: Optional[str] = None):
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    return {"status": "healthy", "last_data_update": data_fetcher.LAST_UPDATE}
 
 def _normalize_asset(asset: str) -> str:
     key = asset.lower().strip()
